@@ -21,3 +21,6 @@ wheels/
 
 # Logs
 *.log
+
+# Locally stored evaluation uploads
+uploads/
