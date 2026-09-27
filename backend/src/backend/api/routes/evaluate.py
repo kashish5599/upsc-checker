@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import base64
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BeforeValidator
 
 from backend.services.answer_pdf_preparation import AnswerPdfPreparationError, AnswerPdfPreparation
+from backend.services.answer_segmentation import SegmentationError, segment_answer_copy
 
 router = APIRouter()
 answer_pdf_prep = AnswerPdfPreparation()
@@ -38,7 +38,7 @@ async def evaluate(
     references = reference_files or []
     answer_bytes = await answer_copy.read()
     try:
-        prepared_answer = answer_pdf_prep.prepare(
+        prepared_answer_copy = answer_pdf_prep.prepare(
             answer_bytes,
             answer_copy.filename or "answer_copy.pdf",
         )
@@ -48,13 +48,18 @@ async def evaluate(
     for upload in references:
         await _validate_pdf(upload, "reference_files")
 
+    try:
+        QASegmentation = await segment_answer_copy(prepared_answer_copy)
+    except SegmentationError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+
     return {
         "answer_file": {
-            "filename": prepared_answer.metadata.filename,
-            "size_bytes": prepared_answer.metadata.size_bytes,
-            "page_count": prepared_answer.metadata.page_count,
-            "title": prepared_answer.metadata.title,
-            "author": prepared_answer.metadata.author,
+            "filename": prepared_answer_copy.metadata.filename,
+            "size_bytes": prepared_answer_copy.metadata.size_bytes,
+            "page_count": prepared_answer_copy.metadata.page_count,
+            "title": prepared_answer_copy.metadata.title,
+            "author": prepared_answer_copy.metadata.author,
         },
         "rendered_pages": [
             {
@@ -65,9 +70,10 @@ async def evaluate(
                 "width": page.width,
                 "height": page.height,
             }
-            for page in prepared_answer.pages
+            for page in prepared_answer_copy.pages
         ],
+        "segmentation": QASegmentation.model_dump(),
         "reference_files": f"Recieved {len(references)} ref files",
         "question_text": f"Question recieved - {question_text}",
-        "processing_status": "prepared",
+        "processing_status": "segmented",
     }
