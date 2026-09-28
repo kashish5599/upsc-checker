@@ -21,6 +21,10 @@ wheels/
 
 # Logs
 *.log
+*.chunk_debug
 
 # Locally stored evaluation uploads
 uploads/
+
+# Local knowledge-base metadata store
+.data/

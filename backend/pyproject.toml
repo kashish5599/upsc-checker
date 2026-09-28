@@ -10,9 +10,13 @@ dependencies = [
     "langchain>=1.4.2",
     "langchain-google-genai>=4.0.0",
     "langfuse>=4.15.6",
+    "pinecone>=7.0.0",
+    "pdfminer-six>=20221105",
     "pymupdf>=1.26.0",
     "python-multipart>=0.0.32",
+    "unstructured>=0.27.8,<0.28",
     "uvicorn>=0.53.0",
+    "pi-heif>=1.4.0",
 ]
 
 [dependency-groups]
