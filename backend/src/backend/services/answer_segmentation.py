@@ -40,6 +40,7 @@ async def segment_answer_copy(aw_copy: AnswerPdf) -> AnswerSegmentation:
             pages = aw_copy.pages,
             page_count=aw_copy.metadata.page_count
         )
+        print(f"Segmentation result - ${result}")
         _validate_result(result, aw_copy.metadata.page_count)
     except:
         raise

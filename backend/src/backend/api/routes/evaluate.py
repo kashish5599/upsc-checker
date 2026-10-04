@@ -5,6 +5,8 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BeforeValidator
 
+from backend.knowledge.config import KnowledgeConfigurationError, KnowledgeSettings
+from backend.knowledge.retrieval import KnowledgeRetrievalError, KnowledgeRetrievalService
 from backend.services.answer_pdf_preparation import AnswerPdfPreparationError, AnswerPdfPreparation
 from backend.services.answer_segmentation import SegmentationError, segment_answer_copy
 
@@ -52,6 +54,36 @@ async def evaluate(
         QASegmentation = await segment_answer_copy(prepared_answer_copy)
     except SegmentationError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
+    print(f"Completed question segmentation - ${QASegmentation.model_dump()}")
+    if any(
+        question.retrieval_query and question.retrieval_query.strip()
+        for question in QASegmentation.questions
+    ):
+        try:
+            retrieval = KnowledgeRetrievalService(
+                settings=KnowledgeSettings.from_environment(),
+            )
+        except KnowledgeConfigurationError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+        except Exception as error:
+            raise HTTPException(
+                status_code=503,
+                detail="The knowledge retrieval service is unavailable.",
+            ) from error
+
+        for question in QASegmentation.questions:
+            if not question.retrieval_query or not question.retrieval_query.strip():
+                continue
+            try:
+                question.context = await retrieval.retrieve_context(
+                    question.retrieval_query,
+                    top_k=12,
+                )
+                print(f"Retrieved context for {question.question_id} - {question.context}")
+            except KnowledgeRetrievalError as error:
+                raise HTTPException(status_code=502, detail=str(error)) from error
+
+    segmentation = QASegmentation.model_dump()
 
     return {
         "answer_file": {
@@ -72,7 +104,7 @@ async def evaluate(
             }
             for page in prepared_answer_copy.pages
         ],
-        "segmentation": QASegmentation.model_dump(),
+        "segmentation": segmentation,
         "reference_files": f"Recieved {len(references)} ref files",
         "question_text": f"Question recieved - {question_text}",
         "processing_status": "segmented",
