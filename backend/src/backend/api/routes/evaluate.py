@@ -5,8 +5,9 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BeforeValidator
 
+from backend.ai.config import EvaluationConfigurationError, EvaluationSettings
+from backend.ai.evaluation import AnswerEvaluationService, EvaluationError
 from backend.knowledge.config import KnowledgeConfigurationError, KnowledgeSettings
-from backend.knowledge.retrieval import KnowledgeRetrievalError, KnowledgeRetrievalService
 from backend.services.answer_pdf_preparation import AnswerPdfPreparationError, AnswerPdfPreparation
 from backend.services.answer_segmentation import SegmentationError, segment_answer_copy
 
@@ -54,36 +55,69 @@ async def evaluate(
         QASegmentation = await segment_answer_copy(prepared_answer_copy)
     except SegmentationError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
-    print(f"Completed question segmentation - ${QASegmentation.model_dump()}")
-    if any(
-        question.retrieval_query and question.retrieval_query.strip()
-        for question in QASegmentation.questions
-    ):
-        try:
-            retrieval = KnowledgeRetrievalService(
-                settings=KnowledgeSettings.from_environment(),
-            )
-        except KnowledgeConfigurationError as error:
-            raise HTTPException(status_code=503, detail=str(error)) from error
-        except Exception as error:
-            raise HTTPException(
-                status_code=503,
-                detail="The knowledge retrieval service is unavailable.",
-            ) from error
 
-        for question in QASegmentation.questions:
-            if not question.retrieval_query or not question.retrieval_query.strip():
-                continue
-            try:
-                question.context = await retrieval.retrieve_context(
-                    question.retrieval_query,
-                    top_k=12,
-                )
-                print(f"Retrieved context for {question.question_id} - {question.context}")
-            except KnowledgeRetrievalError as error:
-                raise HTTPException(status_code=502, detail=str(error)) from error
+    no_questions_detected = not QASegmentation.questions
+    if no_questions_detected:
+        return {
+            "answer_file": {
+                "filename": prepared_answer_copy.metadata.filename,
+                "size_bytes": prepared_answer_copy.metadata.size_bytes,
+                "page_count": prepared_answer_copy.metadata.page_count,
+                "title": prepared_answer_copy.metadata.title,
+                "author": prepared_answer_copy.metadata.author,
+            },
+            "rendered_pages": [
+                {
+                    "page_number": page.page_number,
+                    "mime_type": page.mime_type,
+                    "encoding": "base64",
+                    "width": page.width,
+                    "height": page.height,
+                }
+                for page in prepared_answer_copy.pages
+            ],
+            "segmentation": QASegmentation.model_dump(),
+            "reference_files": f"Recieved {len(references)} ref files",
+            "question_text": f"Question recieved - {question_text}",
+            "processing_status": "no_questions_detected",
+            "message": "No questions were detected in the uploaded answer copy. Please upload a copy containing a question and its answer.",
+        }
+
+    question_results: list[dict[str, object]] = []
+    try:
+        evaluator = AnswerEvaluationService(
+            evaluation_settings=EvaluationSettings.from_environment(),
+            knowledge_settings=KnowledgeSettings.from_environment(),
+        )
+    except (EvaluationConfigurationError, KnowledgeConfigurationError) as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=503,
+            detail="The answer evaluation service is unavailable.",
+        ) from error
+
+    for question in QASegmentation.questions:
+        page_numbers = set(question.pages)
+        answer_pages = tuple(
+            page
+            for page in prepared_answer_copy.pages
+            if page.page_number in page_numbers
+        )
+        try:
+            evaluation = await evaluator.evaluate(
+                question=question,
+                answer_pages=answer_pages,
+            )
+        except EvaluationError as error:
+            raise HTTPException(status_code=502, detail=str(error)) from error
+        question_result = question.model_dump()
+        question_result["evaluation"] = evaluation.model_dump()
+        question_results.append(question_result)
+        print(f"Evaluation result for question {question.question_id}: {evaluation.model_dump()}")
 
     segmentation = QASegmentation.model_dump()
+    segmentation["questions"] = question_results
 
     return {
         "answer_file": {
@@ -107,5 +141,5 @@ async def evaluate(
         "segmentation": segmentation,
         "reference_files": f"Recieved {len(references)} ref files",
         "question_text": f"Question recieved - {question_text}",
-        "processing_status": "segmented",
+        "processing_status": "evaluated",
     }
