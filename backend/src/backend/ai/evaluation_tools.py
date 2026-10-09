@@ -15,7 +15,13 @@ def build_evaluation_tools(
 ) -> list[BaseTool]:
     @tool("retrieve_static_context")
     async def retrieve_static_context(query: str) -> str:
-        """Search the curated UPSC knowledge base for stable concepts, constitutional provisions, theories, and historical or foundational facts relevant to the question. Use this only when the answer benefits from curated static knowledge; do not call it for facts that are only current or when the answer can be assessed without external context. If the results are empty or not useful, consider retrieve_current_context only when current web evidence could materially help. Call at most once per evaluation."""
+        """Search curated UPSC sources to verify stable domain knowledge, especially constitutional provisions and powers,
+        legal doctrines, named judgments/case holdings, and foundational facts. Call this when a concrete legal or
+        factual claim in the question or answer could materially affect scoring; do not accept a plausible-sounding
+        case-law or constitutional claim without checking when retrieval can help. Do not use it for facts that are
+        exclusively current. If results are empty, irrelevant, or insufficient, consider retrieve_current_context only
+        if current web evidence could help. Call at most once per evaluation."""
+
         try:
             chunks = await static_retrieval.retrieve_context(query, top_k=8)
         except Exception as error:
@@ -37,7 +43,12 @@ def build_evaluation_tools(
 
     @tool("retrieve_current_context")
     async def retrieve_current_context(query: str) -> str:
-        """Search for recent UPSC-relevant policies, judgments, government developments, geopolitical events, current data, and contemporary examples. Use only when the question or an answer claim needs current or time-sensitive evidence. Prefer primary and authoritative government, court, regulator, and international-organization sources when available. Do not call it for stable textbook concepts; call at most once per evaluation."""
+        """Search for current UPSC-relevant policies, recent judgments, government developments, geopolitical events,
+        current data, and contemporary examples. Use when a time-sensitive claim could materially affect scoring, or
+        when static retrieval did not provide useful evidence and a current web source could verify the point. Prefer
+        primary government, court, regulator, and international-organization sources. Do not use it for stable
+        textbook concepts or merely to add citations. Call at most once per evaluation."""
+
         search_query = (
             f"{query}. Prioritize primary and authoritative sources where available, "
             "including official government, court, regulator, and international organization sources."

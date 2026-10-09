@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -66,14 +66,21 @@ class EvaluationOutput(BaseModel):
     overall_analysis: OverallAnalysis
     rubric_scores: RubricScores
     suggestions_to_improve: list[str]
-    overall_score: int = Field(
+    score: int = Field(
         default=0,
         ge=0,
-        le=100,
-        description="Calculated by the application as the sum of the nine rubric scores.",
+        le=50,
+        description="Calculated by the application on a 0–50 scale as half the raw rubric total, rounded down.",
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def ignore_model_supplied_total(cls, value: Any) -> Any:
+        if isinstance(value, dict) and "score" in value:
+            return {**value, "score": 0}
+        return value
+
     @model_validator(mode="after")
-    def calculate_overall_score(self) -> EvaluationOutput:
-        self.overall_score = self.rubric_scores.earned_total()
+    def calculate_score(self) -> EvaluationOutput:
+        self.score = min(50, self.rubric_scores.earned_total() // 2)
         return self

@@ -33,6 +33,14 @@ class SegmentedQuestion(BaseModel):
             "otherwise null. Do not transcribe the handwritten answer."
         )
     )
+    maximum_marks: float | None = Field(
+        default=None,
+        strict=False,
+        description=(
+            "Explicit maximum marks assigned to this question, extracted from the printed question "
+            "or answer-copy images; null when it cannot be identified confidently."
+        ),
+    )
     retrieval_query: str | None = Field(
         default=None,
         description="Derived after segmentation from printed or handwritten question text.",
@@ -91,6 +99,12 @@ If printed question wording is not sufficiently visible or readable, attempt to
 extract the student's handwritten question into handwritten_question_text. Use null
 when neither can be read confidently. Never invent, reconstruct, paraphrase, or
 complete unreadable question text.
+
+For each question, identify maximum_marks only when its explicit mark allocation is
+clearly visible in the printed question or answer-copy images. Return the numeric
+mark value only (for example, 10.0), not the word limit or question number. Use null
+when no allocation is shown, or when the value is unclear or ambiguous. Never infer
+marks from a typical UPSC question format.
 
 Preserve visible question numbering and sub-question labels where applicable.
 Do not transcribe the handwritten answer itself.

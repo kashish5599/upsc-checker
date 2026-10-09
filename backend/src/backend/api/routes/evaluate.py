@@ -117,29 +117,10 @@ async def evaluate(
         print(f"Evaluation result for question {question.question_id}: {evaluation.model_dump()}")
 
     segmentation = QASegmentation.model_dump()
-    segmentation["questions"] = question_results
 
     return {
-        "answer_file": {
-            "filename": prepared_answer_copy.metadata.filename,
-            "size_bytes": prepared_answer_copy.metadata.size_bytes,
-            "page_count": prepared_answer_copy.metadata.page_count,
-            "title": prepared_answer_copy.metadata.title,
-            "author": prepared_answer_copy.metadata.author,
-        },
-        "rendered_pages": [
-            {
-                "page_number": page.page_number,
-                "mime_type": page.mime_type,
-                "encoding": "base64",
-                # "image": base64.b64encode(page.image_bytes).decode("ascii"),
-                "width": page.width,
-                "height": page.height,
-            }
-            for page in prepared_answer_copy.pages
-        ],
-        "segmentation": segmentation,
+        "pages": segmentation,
+        "evaluation": question_results,
         "reference_files": f"Recieved {len(references)} ref files",
-        "question_text": f"Question recieved - {question_text}",
         "processing_status": "evaluated",
     }
