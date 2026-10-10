@@ -1,8 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, FileCheck2, LockKeyhole } from "lucide-react";
 import FileDropzone, { type PdfFile } from "./file-dropzone";
+import EvaluationNoticeModal from "./evaluation-notice-modal";
+import {
+  savePendingSubmission,
+  getEvaluationHomeNotice,
+  subscribeToEvaluationHomeNotice,
+  takeEvaluationHomeNotice,
+} from "@/lib/evaluation-storage";
 
 function StepTitle({
   number,
@@ -25,9 +33,40 @@ function StepTitle({
 }
 
 export default function UploadEvaluate() {
+  const router = useRouter();
   const [answerFiles, setAnswerFiles] = useState<PdfFile[]>([]);
+  const [referenceFiles, setReferenceFiles] = useState<PdfFile[]>([]);
   const [question, setQuestion] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const evaluationNotice = useSyncExternalStore(
+    subscribeToEvaluationHomeNotice,
+    getEvaluationHomeNotice,
+    () => null,
+  );
+  const closeEvaluationNotice = useCallback(() => {
+    takeEvaluationHomeNotice();
+  }, []);
+
+  async function handleSubmit() {
+    if (!answerFiles[0] || submitting) return;
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      await savePendingSubmission({
+        answerCopy: answerFiles[0],
+        referenceFiles,
+        questionText: question,
+      });
+      router.push("/evaluating");
+    } catch {
+      setSubmitError("We couldn’t prepare your files. Please try again.");
+      setSubmitting(false);
+    }
+  }
+
   return (
+    <>
     <section className="upload-card-panel" aria-labelledby="upload-heading">
       <h2 id="upload-heading">Upload and Evaluate</h2>
       <p className="panel-subtitle">
@@ -59,6 +98,7 @@ export default function UploadEvaluate() {
             multiple
             label="Reference Material PDFs"
             compact
+            onFilesChange={setReferenceFiles}
           />
         </section>
         <section className="secondary-input question-section">
@@ -85,14 +125,23 @@ export default function UploadEvaluate() {
       <button
         className="submit-button"
         type="button"
-        disabled={!answerFiles.length}
+        disabled={!answerFiles.length || submitting}
+        onClick={handleSubmit}
       >
-        <FileCheck2 size={17} /> Check My Answer <ArrowRight size={20} />
+        <FileCheck2 size={17} /> {submitting ? "Preparing Evaluation…" : "Check My Answer"} <ArrowRight size={20} />
       </button>
+      {submitError && <p className="evaluation-error" role="alert">{submitError}</p>}
       <p className="privacy-note">
         <LockKeyhole size={14} /> Your files are processed securely and are not
         shared.
       </p>
     </section>
+    {evaluationNotice && (
+      <EvaluationNoticeModal
+        message={evaluationNotice}
+        onClose={closeEvaluationNotice}
+      />
+    )}
+    </>
   );
 }

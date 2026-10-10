@@ -1,0 +1,47 @@
+[
+  {
+    "number": 1,
+    "name": "Understanding & Demand",
+    "description": "Addresses the exact directive and all parts of the question."
+  },
+  {
+    "number": 2,
+    "name": "Coverage & Relevance",
+    "description": "Covers important points without irrelevant padding."
+  },
+  {
+    "number": 3,
+    "name": "Depth & Conceptual Clarity",
+    "description": "Explains concepts and underlying mechanisms."
+  },
+  {
+    "number": 4,
+    "name": "Analysis & Reasoned Judgement",
+    "description": "Develops reasoning, weighs perspectives and reaches justified conclusions."
+  },
+  {
+    "number": 5,
+    "name": "Content Quality & Accuracy",
+    "description": "Uses correct facts, laws and concepts."
+  },
+  {
+    "number": 6,
+    "name": "Content Adequacy & Relevant Dimensions",
+    "description": "Includes the necessary dimensions for the question."
+  },
+  {
+    "number": 7,
+    "name": "Contextual Competence & Value Addition",
+    "description": "Uses relevant cases, examples, reports or data meaningfully."
+  },
+  {
+    "number": 8,
+    "name": "Structure, Coherence & Succinctness",
+    "description": "Presents a logical, concise argument."
+  },
+  {
+    "number": 9,
+    "name": "Presentation & Visual Communication",
+    "description": "Uses legible writing and effective layout."
+  }
+]

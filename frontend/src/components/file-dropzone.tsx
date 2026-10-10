@@ -150,7 +150,7 @@ function FileDropzoneContent({
         uppy.setOptions({ restrictions: { maxNumberOfFiles: 1 } });
       }
     };
-    const onRestrictionFailed = (file: ReturnType<Uppy["getFiles"]>[number] | undefined, error) => {
+    const onRestrictionFailed = (file: ReturnType<Uppy["getFiles"]>[number] | undefined, error: Error) => {
       if (!multiple) {
         uppy.setOptions({ restrictions: { maxNumberOfFiles: 1 } });
 
