@@ -59,28 +59,9 @@ async def evaluate(
     no_questions_detected = not QASegmentation.questions
     if no_questions_detected:
         return {
-            "answer_file": {
-                "filename": prepared_answer_copy.metadata.filename,
-                "size_bytes": prepared_answer_copy.metadata.size_bytes,
-                "page_count": prepared_answer_copy.metadata.page_count,
-                "title": prepared_answer_copy.metadata.title,
-                "author": prepared_answer_copy.metadata.author,
-            },
-            "rendered_pages": [
-                {
-                    "page_number": page.page_number,
-                    "mime_type": page.mime_type,
-                    "encoding": "base64",
-                    "width": page.width,
-                    "height": page.height,
-                }
-                for page in prepared_answer_copy.pages
-            ],
-            "segmentation": QASegmentation.model_dump(),
+            "pages": QASegmentation.model_dump(),
             "reference_files": f"Recieved {len(references)} ref files",
-            "question_text": f"Question recieved - {question_text}",
             "processing_status": "no_questions_detected",
-            "message": "No questions were detected in the uploaded answer copy. Please upload a copy containing a question and its answer.",
         }
 
     question_results: list[dict[str, object]] = []
