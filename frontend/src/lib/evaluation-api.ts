@@ -31,9 +31,15 @@ export interface ExcludedPage {
   reason: ExcludedPageReason;
 }
 
-export interface AnswerSegmentation {
-  questions: SegmentedQuestion[];
-  excluded_pages: ExcludedPage[];
+export interface SimilarTopperQuestion {
+  topper: string | null;
+  coaching: string | null;
+  subject: string | null;
+  page_number: string | null;
+  question_text: string;
+  metadata: string | null;
+  question_url: string | null;
+  score: number;
 }
 
 export interface QuestionDemand {
@@ -78,26 +84,18 @@ export interface EvaluationDetails {
 }
 
 export interface EvaluatedQuestion extends SegmentedQuestion {
+  similar_topper_questions: SimilarTopperQuestion[] | null;
   evaluation: EvaluationDetails;
 }
 
-interface EvaluationResponseBase {
-  pages: AnswerSegmentation;
+export interface EvaluationResponseBase {
+  processing_status: "evaluated" | "no_questions_detected";
+  excluded_pages: ExcludedPage[];
+  evaluation: EvaluatedQuestion[];
   reference_files: string;
 }
 
-export interface EvaluatedResponse extends EvaluationResponseBase {
-  processing_status: "evaluated";
-  evaluation: EvaluatedQuestion[];
-}
-
-export interface NoQuestionsDetectedResponse extends EvaluationResponseBase {
-  processing_status: "no_questions_detected";
-}
-
-export type EvaluationResponse =
-  | EvaluatedResponse
-  | NoQuestionsDetectedResponse;
+export type EvaluationResponse = EvaluationResponseBase;
 
 export interface ValidationIssue {
   loc: Array<string | number>;

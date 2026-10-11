@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, CircleAlert, CircleX, FileText } from "lucide-react";
 import Footer from "@/components/footer";
 import Navbar from "@/components/navbar";
 import evaluationRubric from "@/data/evaluation-rubric.json";
-import type { EvaluatedQuestion } from "@/lib/evaluation-api";
+import type { EvaluatedQuestion, SimilarTopperQuestion } from "@/lib/evaluation-api";
 import {
   getLatestEvaluation,
   setEvaluationHomeNotice,
@@ -25,7 +25,7 @@ function getQuestions(result: StoredEvaluation): EvaluatedQuestion[] {
 function getPageCount(result: StoredEvaluation, questions: EvaluatedQuestion[]) {
   const referencedPages = [
     ...questions.flatMap((question) => question.pages),
-    ...result.response.pages.excluded_pages.map((page) => page.page),
+    ...result.response.excluded_pages.map((page) => page.page),
   ];
   return Math.max(1, ...referencedPages);
 }
@@ -42,6 +42,13 @@ function getPageRange(pages: number[]) {
 
 function displayQuestion(question: EvaluatedQuestion) {
   return question.printed_question_text?.trim() || question.handwritten_question_text?.trim() || "Question text was not identified.";
+}
+
+function retrievalQuestionText(question: EvaluatedQuestion) {
+  return question.retrieval_query?.trim()
+    || question.printed_question_text?.trim()
+    || question.handwritten_question_text?.trim()
+    || "";
 }
 
 function percentageMarks(score: number) {
@@ -87,7 +94,23 @@ const demandStatus = {
   },
 } as const;
 
-function QuestionEvaluationPanel({ question }: { question: EvaluatedQuestion }) {
+interface SimilarTopperRetryState {
+  attempted: boolean;
+  loading: boolean;
+  results?: SimilarTopperQuestion[];
+}
+
+function QuestionEvaluationPanel({
+  question,
+  similarQuestions,
+  similarRetryState,
+  onRetrySimilarQuestions,
+}: {
+  question: EvaluatedQuestion;
+  similarQuestions: SimilarTopperQuestion[] | null;
+  similarRetryState?: SimilarTopperRetryState;
+  onRetrySimilarQuestions: () => void;
+}) {
   const evaluation = question.evaluation;
   const strengths = evaluation.overall_analysis.strengths;
   const improvements = evaluation.overall_analysis.weaknesses;
@@ -154,6 +177,46 @@ function QuestionEvaluationPanel({ question }: { question: EvaluatedQuestion }) 
             {evaluation.suggestions_to_improve.length ? (
               <ol>{evaluation.suggestions_to_improve.map((item, index) => <li key={`suggestion-${index}`}>{item}</li>)}</ol>
             ) : <p>No suggestions were returned.</p>}
+          </div>
+        </details>
+
+        <details className="question-feedback-section question-feedback-accordion">
+          <summary>Similar Topper Questions</summary>
+          <div className="accordion-content">
+            {similarQuestions === null && !similarRetryState?.attempted ? (
+              <div className="similar-topper-retrieval-error">
+                <p>Similar topper questions could not be retrieved.</p>
+                <button
+                  className="similar-topper-retry"
+                  type="button"
+                  onClick={onRetrySimilarQuestions}
+                  disabled={!retrievalQuestionText(question)}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : similarRetryState?.loading ? (
+              <p>Retrieving similar topper questions…</p>
+            ) : similarQuestions?.length ? (
+              <ol className="similar-topper-question-list">
+                {similarQuestions.map((item, index) => (
+                  <li key={`${question.question_id}-similar-${index}`}>
+                    <p>{item.question_text}</p>
+                    <div className="similar-topper-question-meta">
+                      <span>{item.topper || "Topper not specified"}</span>
+                      {item.question_url && (
+                        <a href={item.question_url} target="_blank" rel="noopener noreferrer">
+                          View question
+                        </a>
+                      )}
+                      <span>Relevance: {Math.round(item.score * 100)}%</span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p>No similar topper questions found.</p>
+            )}
           </div>
         </details>
       </div>
@@ -234,6 +297,8 @@ export default function ResultsPage() {
   const [pdfPage, setPdfPage] = useState(1);
   const [pdfNavigationVersion, setPdfNavigationVersion] = useState(0);
   const [activeTab, setActiveTab] = useState<ResultTab>("overall");
+  const [similarTopperRetries, setSimilarTopperRetries] = useState<Record<string, SimilarTopperRetryState>>({});
+  const similarTopperRetryStarted = useRef(new Set<string>());
 
   useEffect(() => {
     let active = true;
@@ -278,6 +343,38 @@ export default function ResultsPage() {
     : "";
   const activeQuestion = questions.find((question) => question.question_id === activeTab);
   const visiblePageRange = activeQuestion ? getPageRange(activeQuestion.pages) : "";
+
+  async function retrySimilarTopperQuestions(question: EvaluatedQuestion) {
+    const questionId = question.question_id;
+    const questionText = retrievalQuestionText(question);
+    if (!questionText || similarTopperRetryStarted.current.has(questionId)) return;
+
+    similarTopperRetryStarted.current.add(questionId);
+    setSimilarTopperRetries((current) => ({
+      ...current,
+      [questionId]: { attempted: true, loading: true },
+    }));
+
+    try {
+      const params = new URLSearchParams({ question_text: questionText });
+      const response = await fetch(`/api/v1/similar-topper-questions?${params.toString()}`);
+      if (!response.ok) throw new Error("Similar-question retrieval failed.");
+      const payload: unknown = await response.json();
+      setSimilarTopperRetries((current) => ({
+        ...current,
+        [questionId]: {
+          attempted: true,
+          loading: false,
+          results: Array.isArray(payload) ? payload as SimilarTopperQuestion[] : [],
+        },
+      }));
+    } catch {
+      setSimilarTopperRetries((current) => ({
+        ...current,
+        [questionId]: { attempted: true, loading: false, results: [] },
+      }));
+    }
+  }
 
   function handleQuestionSelection(question: EvaluatedQuestion) {
     setActiveTab(question.question_id);
@@ -345,12 +442,19 @@ export default function ResultsPage() {
                 <div id="evaluation-tab-panel" role="tabpanel" aria-labelledby="tab-overall" className="results-tab-panel">
                   <OverallAnalysis
                     questions={questions}
-                    excludedPageCount={result.response.pages.excluded_pages.length}
+                    excludedPageCount={result.response.excluded_pages.length}
                   />
                 </div>
               ) : activeQuestion ? (
                 <div id="evaluation-tab-panel" role="tabpanel" aria-labelledby={`tab-${activeQuestion.question_id}`} className="results-tab-panel question-tab-panel">
-                  <QuestionEvaluationPanel question={activeQuestion} />
+                  <QuestionEvaluationPanel
+                    question={activeQuestion}
+                    similarQuestions={similarTopperRetries[activeQuestion.question_id]?.attempted
+                      ? similarTopperRetries[activeQuestion.question_id].results ?? null
+                      : activeQuestion.similar_topper_questions}
+                    similarRetryState={similarTopperRetries[activeQuestion.question_id]}
+                    onRetrySimilarQuestions={() => void retrySimilarTopperQuestions(activeQuestion)}
+                  />
                 </div>
               ) : null}
             </section>
