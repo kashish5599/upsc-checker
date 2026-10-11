@@ -57,6 +57,7 @@ class SimilarTopperQuestionsService:
             return None
 
         results: list[dict[str, Any]] = []
+        print(f"All of the Retrieved matches before filtering - {matches}")
         for match in matches:
             metadata = _match_value(match, "metadata") or {}
             if not isinstance(metadata, dict):

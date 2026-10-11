@@ -62,7 +62,8 @@ async def evaluate(
     no_questions_detected = not QASegmentation.questions
     if no_questions_detected:
         return {
-            "pages": QASegmentation.model_dump(),
+            "excluded_pages": QASegmentation.excluded_pages,
+            "evaluation": question_results,
             "reference_files": f"Recieved {len(references)} ref files",
             "processing_status": "no_questions_detected",
         }
