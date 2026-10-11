@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -8,11 +9,13 @@ from pydantic import BeforeValidator
 from backend.ai.config import EvaluationConfigurationError, EvaluationSettings
 from backend.ai.evaluation import AnswerEvaluationService, EvaluationError
 from backend.knowledge.config import KnowledgeConfigurationError, KnowledgeSettings
+from backend.knowledge.topper_questions import SimilarTopperQuestionsService
 from backend.services.answer_pdf_preparation import AnswerPdfPreparationError, AnswerPdfPreparation
 from backend.services.answer_segmentation import SegmentationError, segment_answer_copy
 
 router = APIRouter()
 answer_pdf_prep = AnswerPdfPreparation()
+logger = logging.getLogger(__name__)
 
 def _empty_reference_files(value: object) -> object:
     if value == "" or value == [""]:
@@ -66,9 +69,10 @@ async def evaluate(
 
     question_results: list[dict[str, object]] = []
     try:
+        knowledge_settings = KnowledgeSettings.from_environment()
         evaluator = AnswerEvaluationService(
             evaluation_settings=EvaluationSettings.from_environment(),
-            knowledge_settings=KnowledgeSettings.from_environment(),
+            knowledge_settings=knowledge_settings,
         )
     except (EvaluationConfigurationError, KnowledgeConfigurationError) as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
@@ -78,6 +82,12 @@ async def evaluate(
             detail="The answer evaluation service is unavailable.",
         ) from error
 
+    try:
+        similar_topper_questions = SimilarTopperQuestionsService(settings=knowledge_settings)
+    except Exception:
+        logger.exception("Could not initialize similar topper-question retrieval.")
+        similar_topper_questions = None
+
     for question in QASegmentation.questions:
         page_numbers = set(question.pages)
         answer_pages = tuple(
@@ -86,6 +96,11 @@ async def evaluate(
             if page.page_number in page_numbers
         )
         try:
+            similar_questions = (
+                await similar_topper_questions.retrieve_similar_questions(question.retrieval_query)
+                if similar_topper_questions is not None
+                else None
+            )
             evaluation = await evaluator.evaluate(
                 question=question,
                 answer_pages=answer_pages,
@@ -93,14 +108,14 @@ async def evaluate(
         except EvaluationError as error:
             raise HTTPException(status_code=502, detail=str(error)) from error
         question_result = question.model_dump()
+        question_result["similar_topper_questions"] = similar_questions
         question_result["evaluation"] = evaluation.model_dump()
         question_results.append(question_result)
-        print(f"Evaluation result for question {question.question_id}: {evaluation.model_dump()}")
-
-    segmentation = QASegmentation.model_dump()
+        print(f"Retrieved similar questions: ${similar_questions}")
+        # print(f"Evaluation result for question {question.question_id}: {evaluation.model_dump()}")
 
     return {
-        "pages": segmentation,
+        "excluded_pages": QASegmentation.excluded_pages,
         "evaluation": question_results,
         "reference_files": f"Recieved {len(references)} ref files",
         "processing_status": "evaluated",
