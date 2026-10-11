@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langfuse import observe
 
 from backend.knowledge.document_processing import (
@@ -19,7 +18,8 @@ from backend.knowledge.repository import (
     KnowledgeDocumentRepository,
 )
 from backend.knowledge.config import KnowledgeSettings
-from backend.knowledge.pinecone_store import PineconeKnowledgeStore
+from backend.knowledge.embeddings import create_knowledge_embeddings
+from backend.knowledge.pinecone_store import PineconeVectorStore
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -41,12 +41,8 @@ class KnowledgeIngestionService:
         self._settings = settings
         self._repository = repository
         self._pdf_processor = UnstructuredPdfProcessor()
-        self._embeddings = GoogleGenerativeAIEmbeddings(
-            model=settings.gemini_embedding_model,
-            google_api_key=settings.gemini_api_key,
-            output_dimensionality=768
-        )
-        self._vectors = PineconeKnowledgeStore(
+        self._embeddings = create_knowledge_embeddings(settings)
+        self._vectors = PineconeVectorStore(
             api_key=settings.pinecone_api_key,
             index_name=settings.pinecone_index_name,
             host=settings.pinecone_host,

@@ -3,10 +3,9 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-
 from backend.knowledge.config import KnowledgeSettings
-from backend.knowledge.pinecone_store import PineconeKnowledgeStore
+from backend.knowledge.embeddings import create_knowledge_embeddings
+from backend.knowledge.pinecone_store import PineconeVectorStore
 
 MIN_SIMILARITY_SCORE = 0.69
 
@@ -19,12 +18,8 @@ class KnowledgeRetrievalService:
     """Retrieve question-specific context through dense vector similarity."""
 
     def __init__(self, *, settings: KnowledgeSettings) -> None:
-        self._embeddings = GoogleGenerativeAIEmbeddings(
-            model=settings.gemini_embedding_model,
-            google_api_key=settings.gemini_api_key,
-            output_dimensionality=768,
-        )
-        self._vectors = PineconeKnowledgeStore(
+        self._embeddings = create_knowledge_embeddings(settings)
+        self._vectors = PineconeVectorStore(
             api_key=settings.pinecone_api_key,
             index_name=settings.pinecone_index_name,
             host=settings.pinecone_host,
