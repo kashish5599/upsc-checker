@@ -12,7 +12,6 @@ from backend.knowledge.pinecone_store import PineconeVectorStore
 logger = logging.getLogger(__name__)
 
 SIMILAR_TOPPER_QUESTIONS_K = 3
-MIN_TOPPER_QUESTION_SCORE = 0.9
 TOPPER_QUESTIONS_NAMESPACE = "topper-questions"
 
 
@@ -57,7 +56,6 @@ class SimilarTopperQuestionsService:
             return None
 
         results: list[dict[str, Any]] = []
-        print(f"All of the Retrieved matches before filtering - {matches}")
         for match in matches:
             metadata = _match_value(match, "metadata") or {}
             if not isinstance(metadata, dict):
@@ -67,8 +65,6 @@ class SimilarTopperQuestionsService:
             try:
                 score = float(raw_score)
             except (TypeError, ValueError):
-                continue
-            if score < MIN_TOPPER_QUESTION_SCORE:
                 continue
             if not isinstance(question_text, str) or not question_text.strip():
                 continue

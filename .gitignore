@@ -4,6 +4,7 @@
 
 # Logs
 *.log
+*.chunk_debug
 
 # Environment variables
 .env

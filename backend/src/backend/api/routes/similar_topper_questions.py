@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 @router.get("/similar-topper-questions")
 async def get_similar_topper_questions(
     question_text: Annotated[str, Query(min_length=1)],
+    limit: Annotated[int, Query(ge=1)] = 3,
 ) -> list[dict[str, Any]] | None:
-    """Retrieve highly similar topper questions for a detected question."""
+    """Retrieve ranked topper questions for a detected question."""
     try:
         service = SimilarTopperQuestionsService(
             settings=KnowledgeSettings.from_environment(),
@@ -25,4 +26,4 @@ async def get_similar_topper_questions(
         logger.exception("Could not initialize similar topper-question retrieval.")
         return None
 
-    return await service.retrieve_similar_questions(question_text)
+    return await service.retrieve_similar_questions(question_text, top_k=limit)

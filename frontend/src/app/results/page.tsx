@@ -94,6 +94,8 @@ const demandStatus = {
   },
 } as const;
 
+const MIN_SIMILAR_TOPPER_QUESTION_SCORE = 0.85;
+
 interface SimilarTopperRetryState {
   attempted: boolean;
   loading: boolean;
@@ -117,6 +119,9 @@ function QuestionEvaluationPanel({
   const demand = evaluation.question_demand;
   const status = demandStatus[demand.demand_addressed];
   const DemandIcon = status.Icon;
+  const displaySimilarQuestions = similarQuestions?.filter(
+    (item) => item.score >= MIN_SIMILAR_TOPPER_QUESTION_SCORE,
+  ) ?? similarQuestions;
 
   return (
     <div className="question-evaluation-content">
@@ -183,7 +188,7 @@ function QuestionEvaluationPanel({
         <details className="question-feedback-section question-feedback-accordion">
           <summary>Similar Topper Questions</summary>
           <div className="accordion-content">
-            {similarQuestions === null && !similarRetryState?.attempted ? (
+            {displaySimilarQuestions === null && !similarRetryState?.attempted ? (
               <div className="similar-topper-retrieval-error">
                 <p>Similar topper questions could not be retrieved.</p>
                 <button
@@ -197,9 +202,9 @@ function QuestionEvaluationPanel({
               </div>
             ) : similarRetryState?.loading ? (
               <p>Retrieving similar topper questions…</p>
-            ) : similarQuestions?.length ? (
+            ) : displaySimilarQuestions?.length ? (
               <ol className="similar-topper-question-list">
-                {similarQuestions.map((item, index) => (
+                {displaySimilarQuestions.map((item, index) => (
                   <li key={`${question.question_id}-similar-${index}`}>
                     <p>{item.question_text}</p>
                     <div className="similar-topper-question-meta">
