@@ -1,4 +1,4 @@
-import type { EvaluationResponse } from "@/lib/evaluation-api";
+import type { EvaluationPaper, EvaluationResponse } from "@/lib/evaluation-api";
 
 const DATABASE_NAME = "upsc-copy-checker";
 const STORE_NAME = "workflow";
@@ -12,6 +12,7 @@ export interface PendingSubmission {
   answerCopy: File;
   referenceFiles: File[];
   questionText: string;
+  paper: EvaluationPaper;
 }
 
 export interface StoredEvaluation {

@@ -349,6 +349,58 @@ a {
   font-size: 12px;
   line-height: 1.35;
 }
+.paper-selector {
+  min-width: 0;
+  margin: 0 0 17px;
+  padding: 0;
+  border: 0;
+}
+.paper-selector legend {
+  margin-bottom: 9px;
+  color: #173254;
+  font: 600 15px/1.25 Georgia, "Times New Roman", serif;
+}
+.paper-selector legend .badge {
+  margin-left: 6px;
+  vertical-align: middle;
+  font: 500 10px Arial, sans-serif;
+}
+.paper-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.paper-option {
+  min-width: 68px;
+  padding: 7px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #dce3e9;
+  border-radius: 6px;
+  background: #fbfcfd;
+  color: #38536d;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.paper-option.is-selected {
+  border-color: #6c91b5;
+  background: #eff5fa;
+  color: #173254;
+}
+.paper-option input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #315a82;
+}
+.paper-selector > p {
+  margin: 7px 0 0;
+  color: #8191a6;
+  font-size: 10px;
+}
 .dropzone-wrap {
   min-width: 0;
 }

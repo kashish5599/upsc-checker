@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BeforeValidator
@@ -34,6 +34,7 @@ async def _validate_pdf(upload: UploadFile, field_name: str) -> None:
 @router.post("/evaluate")
 async def evaluate(
     answer_copy: Annotated[UploadFile, File(...)],
+    paper: Annotated[Literal["GS1", "GS2", "GS3", "GS4", "Essay"], Form(...)],
     reference_files: Annotated[
         list[UploadFile] | None,
         BeforeValidator(_empty_reference_files),
@@ -41,6 +42,7 @@ async def evaluate(
     ] = None,
     question_text: Annotated[str | None, Form()] = None,
 ) -> dict[str, object]:
+    print(f"Paper: {paper}")
     references = reference_files or []
     answer_bytes = await answer_copy.read()
     try:
@@ -59,6 +61,7 @@ async def evaluate(
     except SegmentationError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
 
+    question_results: list[dict[str, object]] = []
     no_questions_detected = not QASegmentation.questions
     if no_questions_detected:
         return {
@@ -68,7 +71,6 @@ async def evaluate(
             "processing_status": "no_questions_detected",
         }
 
-    question_results: list[dict[str, object]] = []
     try:
         knowledge_settings = KnowledgeSettings.from_environment()
         evaluator = AnswerEvaluationService(

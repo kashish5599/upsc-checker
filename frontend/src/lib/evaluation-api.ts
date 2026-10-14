@@ -88,6 +88,9 @@ export interface EvaluatedQuestion extends SegmentedQuestion {
   evaluation: EvaluationDetails;
 }
 
+export const EVALUATION_PAPERS = ["GS1", "GS2", "GS3", "GS4", "Essay"] as const;
+export type EvaluationPaper = (typeof EVALUATION_PAPERS)[number];
+
 export interface EvaluationResponseBase {
   processing_status: "evaluated" | "no_questions_detected";
   excluded_pages: ExcludedPage[];
@@ -148,9 +151,11 @@ export async function submitEvaluation(
   answerCopy: File,
   referenceFiles: File[],
   questionText: string,
+  paper: EvaluationPaper,
 ): Promise<EvaluationResponse> {
   const form = new FormData();
   form.append("answer_copy", answerCopy, answerCopy.name);
+  form.append("paper", paper);
   for (const reference of referenceFiles) {
     form.append("reference_files", reference, reference.name);
   }

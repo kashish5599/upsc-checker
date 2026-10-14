@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, FileCheck2, LockKeyhole } from "lucide-react";
 import FileDropzone, { type PdfFile } from "./file-dropzone";
 import EvaluationNoticeModal from "./evaluation-notice-modal";
+import { EVALUATION_PAPERS, type EvaluationPaper } from "@/lib/evaluation-api";
 import {
   savePendingSubmission,
   getEvaluationHomeNotice,
@@ -37,6 +38,7 @@ export default function UploadEvaluate() {
   const [answerFiles, setAnswerFiles] = useState<PdfFile[]>([]);
   const [referenceFiles, setReferenceFiles] = useState<PdfFile[]>([]);
   const [question, setQuestion] = useState("");
+  const [paper, setPaper] = useState<EvaluationPaper | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const evaluationNotice = useSyncExternalStore(
@@ -49,7 +51,7 @@ export default function UploadEvaluate() {
   }, []);
 
   async function handleSubmit() {
-    if (!answerFiles[0] || submitting) return;
+    if (!answerFiles[0] || !paper || submitting) return;
     setSubmitting(true);
     setSubmitError("");
     try {
@@ -57,6 +59,7 @@ export default function UploadEvaluate() {
         answerCopy: answerFiles[0],
         referenceFiles,
         questionText: question,
+        paper,
       });
       router.push("/evaluating");
     } catch {
@@ -122,10 +125,26 @@ export default function UploadEvaluate() {
           </div>
         </section>
       </div>
+      <fieldset className="paper-selector" aria-required="true">
+        <legend>Paper <span className="badge badge-required">Required</span></legend>
+        <div className="paper-options">
+          {EVALUATION_PAPERS.map((option) => (
+            <label className={paper === option ? "paper-option is-selected" : "paper-option"} key={option}>
+              <input
+                type="checkbox"
+                checked={paper === option}
+                onChange={(event) => setPaper(event.target.checked ? option : null)}
+              />
+              <span>{option}</span>
+            </label>
+          ))}
+        </div>
+        <p>Select the paper this answer belongs to.</p>
+      </fieldset>
       <button
         className="submit-button"
         type="button"
-        disabled={!answerFiles.length || submitting}
+        disabled={!answerFiles.length || !paper || submitting}
         onClick={handleSubmit}
       >
         <FileCheck2 size={17} /> {submitting ? "Preparing Evaluation…" : "Check My Answer"} <ArrowRight size={20} />

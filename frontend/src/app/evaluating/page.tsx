@@ -34,11 +34,18 @@ export default function EvaluatingPage() {
         setError("Start from the upload page to submit an answer copy.");
         return;
       }
+      if (!submission.paper) {
+        await clearPendingSubmission().catch(() => undefined);
+        setEvaluationHomeNotice("Select a Paper before evaluating your answer.");
+        router.replace("/");
+        return;
+      }
 
       const response = await submitEvaluation(
         submission.answerCopy,
         submission.referenceFiles,
         submission.questionText,
+        submission.paper,
       );
       if (response.processing_status === "no_questions_detected") {
         await clearPendingSubmission().catch(() => undefined);
