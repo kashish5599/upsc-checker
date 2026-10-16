@@ -13,13 +13,13 @@ def build_evaluation_tools(
     static_retrieval: KnowledgeRetrievalService,
     tavily_search: TavilySearch,
 ) -> list[BaseTool]:
-    @tool("retrieve_static_context")
-    async def retrieve_static_context(query: str) -> str:
+    @tool("retrieve_context_from_notes")
+    async def retrieve_context_from_notes(query: str) -> str:
         """Search curated UPSC sources to verify stable domain knowledge, especially constitutional provisions and powers,
         legal doctrines, named judgments/case holdings, and foundational facts. Call this when a concrete legal or
         factual claim in the question or answer could materially affect scoring; do not accept a plausible-sounding
         case-law or constitutional claim without checking when retrieval can help. Do not use it for facts that are
-        exclusively current. If results are empty, irrelevant, or insufficient, consider retrieve_current_context only
+        exclusively current. If results are empty, irrelevant, or insufficient, consider retrieve_context_from_web only
         if current web evidence could help. Call at most once per evaluation."""
 
         try:
@@ -41,11 +41,11 @@ def build_evaluation_tools(
         ]
         return json.dumps({"query": query, "results": concise_chunks}, ensure_ascii=False)
 
-    @tool("retrieve_current_context")
-    async def retrieve_current_context(query: str) -> str:
+    @tool("retrieve_context_from_web")
+    async def retrieve_context_from_web(query: str) -> str:
         """Search for current UPSC-relevant policies, recent judgments, government developments, geopolitical events,
         current data, and contemporary examples. Use when a time-sensitive claim could materially affect scoring, or
-        when static retrieval did not provide useful evidence and a current web source could verify the point. Prefer
+        when retrieve_context_from_notes did not provide useful evidence and a current web source could verify the point. Prefer
         primary government, court, regulator, and international-organization sources. Do not use it for stable
         textbook concepts or merely to add citations. Call at most once per evaluation."""
 
@@ -75,7 +75,7 @@ def build_evaluation_tools(
         ]
         return json.dumps({"query": query, "sources": sources}, ensure_ascii=False)
 
-    return [retrieve_static_context, retrieve_current_context]
+    return [retrieve_context_from_notes, retrieve_context_from_web]
 
 
 def _page_label(chunk: dict[str, Any]) -> str | None:

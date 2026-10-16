@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Literal
+from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BeforeValidator
 
 from backend.ai.config import EvaluationConfigurationError, EvaluationSettings
 from backend.ai.evaluation import AnswerEvaluationService, EvaluationError
+from backend.ai.evaluation_prompts import Paper
 from backend.knowledge.config import KnowledgeConfigurationError, KnowledgeSettings
 from backend.knowledge.topper_questions import SimilarTopperQuestionsService
 from backend.services.answer_pdf_preparation import AnswerPdfPreparationError, AnswerPdfPreparation
@@ -34,7 +35,7 @@ async def _validate_pdf(upload: UploadFile, field_name: str) -> None:
 @router.post("/evaluate")
 async def evaluate(
     answer_copy: Annotated[UploadFile, File(...)],
-    paper: Annotated[Literal["GS1", "GS2", "GS3", "GS4", "Essay"], Form(...)],
+    paper: Annotated[Paper, Form(...)],
     reference_files: Annotated[
         list[UploadFile] | None,
         BeforeValidator(_empty_reference_files),
@@ -76,6 +77,7 @@ async def evaluate(
         evaluator = AnswerEvaluationService(
             evaluation_settings=EvaluationSettings.from_environment(),
             knowledge_settings=knowledge_settings,
+            paper=paper,
         )
     except (EvaluationConfigurationError, KnowledgeConfigurationError) as error:
         raise HTTPException(status_code=503, detail=str(error)) from error

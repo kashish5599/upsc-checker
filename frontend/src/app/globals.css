@@ -1587,7 +1587,7 @@ a {
 .section-analysis-item + .section-analysis-item {
   margin-top: 10px;
 }
-.section-analysis-item strong {
+.section-analysis-item > .section-analysis-title {
   display: block;
   color: #314d6c;
   font-size: 11px;
